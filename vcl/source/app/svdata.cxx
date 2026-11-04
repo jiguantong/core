@@ -560,7 +560,13 @@ ImplSVHelpData& ImplGetSVHelpData()
     }
 }
 
-ImplSVData::~ImplSVData() {}
+ImplSVData::~ImplSVData()
+{
+    // 默认窗口数据先于 ImplSVData 完成构造，会在它之后析构。
+    // 先释放其中的图标，确保位图析构访问的 maGDIData.maScaleCache 仍然有效。
+    // 当前 mpWinData 可能指向其他视图，因此必须清理默认静态实例。
+    private_aImplSVWinData::get().maMsgBoxImgList.clear();
+}
 
 ImplSVAppData::ImplSVAppData()
 {
