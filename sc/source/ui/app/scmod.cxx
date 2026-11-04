@@ -17,7 +17,6 @@
  *   the License at http://www.apache.org/licenses/LICENSE-2.0 .
  */
 
-#include <com/sun/star/datatransfer/clipboard/SystemClipboard.hpp>
 #include <com/sun/star/ui/dialogs/XSLTFilterDialog.hpp>
 #include <comphelper/lok.hxx>
 #include <comphelper/processfactory.hxx>
@@ -160,19 +159,9 @@ ScModule::ScModule( SfxObjectFactory* pFact ) :
 
 ScModule::~ScModule()
 {
-    assert( !m_pSelTransfer && "Selection Transfer object not deleted" );
-
-    // Mostly here to prevent leaks during shutdown when running unit tests
-    // Need to clear this early in the shutdown process, because it might hold references
-    // to large complex things like ScDocument.
-    try {
-        css::uno::Reference<css::datatransfer::clipboard::XClipboard> xClipboard =
-            css::datatransfer::clipboard::SystemClipboard::create(
-                comphelper::getProcessComponentContext());
-        xClipboard->setContents( nullptr, nullptr );
-    } catch (css::uno::DeploymentException const&) {
-        // ignore, sometimes happens that UNO is already shutdown by now
-    }
+    // 沿用上游 tdf#173462 的回退：LOK 退出时剪贴板容器可能已析构，
+    // 模块析构不能再次创建剪贴板服务；文档和视图销毁仍按原流程清理。
+    OSL_ENSURE( !m_pSelTransfer, "Selection Transfer object not deleted" );
 
     // InputHandler does not need to be deleted (there's none in the App anymore)
 
