@@ -148,9 +148,6 @@ bool ShouldFallbackToStandard(const uno::Reference<task::XInteractionRequest>& x
     if (task::DocumentMacroConfirmationRequest aStruct; request >>= aStruct)
         return true;
 
-    if (document::BrokenPackageRequest aStruct; request >>= aStruct)
-        return true;
-
     if (document::FilterOptionsRequest aStruct; request >>= aStruct)
         return true;
 
@@ -385,6 +382,33 @@ sal_Bool SAL_CALL LOKInteractionHandler::handleInteractionRequest(
 
     if (handlePasswordRequest(aContinuations, request))
         return true;
+
+    if (document::BrokenPackageRequest aBrokenPackageRequest; request >>= aBrokenPackageRequest)
+    {
+        for (auto const& continuation : aContinuations)
+        {
+            uno::Reference<task::XInteractionApprove> const xApprove(continuation, uno::UNO_QUERY);
+            if (xApprove.is())
+            {
+                xApprove->select();
+                // 通知调用方已进入修复流程；该信号不代表受损内容已完整恢复。
+                postError(task::InteractionClassification_WARNING, "document-repair",
+                          ERRCODE_IO_BROKENPACKAGE, OUString());
+                return true;
+            }
+        }
+
+        for (auto const& continuation : aContinuations)
+        {
+            uno::Reference<task::XInteractionAbort> const xAbort(continuation, uno::UNO_QUERY);
+            if (xAbort.is())
+            {
+                xAbort->select();
+                return true;
+            }
+        }
+        return false;
+    }
 
     if (ShouldFallbackToStandard(xRequest))
         return FallbackToStandard(xRequest);
